@@ -106,88 +106,59 @@ def get_chroma_db(embeddings, documents, path):
         return Chroma(persist_directory=path, embedding_function=embeddings)
 
 
-def process_query(query: str, vectorstore) -> str:
-    """
-    Procesa una consulta del usuario y genera una respuesta del chatbot.
+class hashira():
+    def __init__(self) -> None:
+        pass
+    
+    def startup(self) -> bool:
+        self.config = load_config()
+        self.embeddings = select_embedding_provider(self.config["embeddings_provider"], self.config["embeddings_model"])
+        self.documents = load_documents(get_file_path())
+        self.vectorstore = get_chroma_db(self.embeddings, self.documents, self.config["chroma_db_name"])
+        console.print(f"[green]Documentos {len(self.documents)} cargados.[/green]")
+        return True
 
-    Args:
-        query (str): La consulta del usuario.
-        vectorstore: La base de datos de vectores donde buscar la respuesta.
+    def process_query(self, query: str) -> str:
+        """
+        Procesa una consulta del usuario y genera una respuesta del chatbot.
 
-    Returns:
-        La respuesta generada por el chatbot.
-    """
-    config = load_config()
-    retriever = vectorstore.as_retriever(
-        search_kwargs={"k": config["document_retrieval"]["k"]}
-    )
-    memory = VectorStoreRetrieverMemory(retriever=retriever)
+        Args:
+            query (str): La consulta del usuario.
+            vectorstore: La base de datos de vectores donde buscar la respuesta.
 
-    llm = ChatOpenAI(
-        model_name=config["chat_model"]["model_name"],
-        temperature=config["chat_model"]["temperature"],
-        max_tokens=config["chat_model"]["max_tokens"],
-    )
+        Returns:
+            La respuesta generada por el chatbot.
+        """
+        retriever = self.vectorstore.as_retriever(search_kwargs={"k": self.config["document_retrieval"]["k"]})
+        memory = VectorStoreRetrieverMemory(retriever=retriever)
 
-    conversation_with_summary = ConversationChain(
-        prompt=PROMPT_TEMPLATE_CHAT,
-        llm=llm,
-        memory=memory,
-        verbose=config["conversation_chain"]["verbose"],
-    )
+        llm = ChatOpenAI(
+            model_name=self.config["chat_model"]["model_name"],
+            temperature=self.config["chat_model"]["temperature"],
+            max_tokens=self.config["chat_model"]["max_tokens"],
+        )
 
-    console.print("[yellow]La IA está pensando...[/yellow]")
+        conversation_with_summary = ConversationChain(
+            prompt=PROMPT_TEMPLATE_CHAT,
+            llm=llm,
+            memory=memory,
+            verbose=self.config["conversation_chain"]["verbose"],
+        )
 
-    return conversation_with_summary.predict(input=query)
+        c = conversation_with_summary.predict(input=query)
+        return c 
 
-
-def run_conversation(vectorstore_chroma):
-    """
-    Inicia una conversación con el usuario.
-
-    Args:
-        vectorstore_chroma: La base de datos de vectores donde buscar las respuestas.
-    """
-    conversation_history = []
-
-    console.print(
-        "\n[blue]IA:[/blue] Hola! Cuál es tu nombre? Qué quieres preguntarme?"
-    )
-
-    while True:
-        console.print("\n[blue]Tú:[/blue]")
-        query = get_query_from_user()
-
-        if query.lower() == "salir":
-            break
-
-        conversation_history.append({"role": "system", "content": f"User: {query}"})
-
-        response = process_query(query=query, vectorstore=vectorstore_chroma)
-
+    def single_question(self, query):
+        """
+        Pregunta sencilla
+        """
+        response = self.process_query(query)
         console.print(f"[red]IA:[/red] {response}")
 
-        conversation_history.append({"role": "system", "content": f"AI: {response}"})
-
-
-def main():
-    """
-    Función principal que se ejecuta cuando se inicia el script.
-    """
-    config = load_config()
-
-    embeddings = select_embedding_provider(
-        config["embeddings_provider"], config["embeddings_model"]
-    )
-
-    documents = load_documents(get_file_path())
-
-    vectorstore_chroma = get_chroma_db(embeddings, documents, config["chroma_db_name"])
-
-    console.print(f"[green]Documentos {len(documents)} cargados.[/green]")
-
-    run_conversation(vectorstore_chroma)
-
+def hashira_run(a,b) -> None:
+    h = hashira()
+    if h.startup():
+        h.single_question("clima de bogotá")
 
 if __name__ == "__main__":
-    main()
+    hashira_run(None, None)
